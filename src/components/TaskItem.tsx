@@ -6,10 +6,16 @@ import { formatCreatedDate } from '../utils/date';
 type TaskItemProps = {
   task: Task;
   onDelete: (id: string) => void;
+  onEdit: (task: Task) => void;
   onToggle: (id: string) => void;
 };
 
-export function TaskItem({ task, onDelete, onToggle }: TaskItemProps) {
+export function TaskItem({ task, onDelete, onEdit, onToggle }: TaskItemProps) {
+  const timeLabel =
+    task.startTime || task.endTime
+      ? `${task.startTime || 'Anytime'} - ${task.endTime || 'Open'}`
+      : 'No time set';
+
   return (
     <View style={styles.card}>
       <Pressable
@@ -31,24 +37,37 @@ export function TaskItem({ task, onDelete, onToggle }: TaskItemProps) {
         >
           {task.title}
         </Text>
+        <Text style={styles.time}>{timeLabel}</Text>
+        {task.hasReminder ? <Text style={styles.reminder}>Reminder on</Text> : null}
         <Text style={styles.date}>Created {formatCreatedDate(task.createdAt)}</Text>
       </View>
 
-      <Pressable
-        accessibilityLabel={`Delete ${task.title}`}
-        accessibilityRole="button"
-        onPress={() => onDelete(task.id)}
-        style={styles.deleteButton}
-      >
-        <Text style={styles.deleteText}>Delete</Text>
-      </Pressable>
+      <View style={styles.actions}>
+        <Pressable
+          accessibilityLabel={`Edit ${task.title}`}
+          accessibilityRole="button"
+          onPress={() => onEdit(task)}
+          style={styles.editButton}
+        >
+          <Text style={styles.editText}>Edit</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel={`Delete ${task.title}`}
+          accessibilityRole="button"
+          onPress={() => onDelete(task.id)}
+          style={styles.deleteButton}
+        >
+          <Text style={styles.deleteText}>Delete</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#ffffff',
     borderColor: '#dfe7ef',
     borderRadius: 8,
@@ -61,6 +80,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
+  },
+  actions: {
+    gap: 8,
   },
   check: {
     alignItems: 'center',
@@ -107,6 +129,32 @@ const styles = StyleSheet.create({
     color: '#b42318',
     fontSize: 13,
     fontWeight: '700',
+  },
+  editButton: {
+    alignItems: 'center',
+    borderColor: '#bdd0ee',
+    borderRadius: 6,
+    borderWidth: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  editText: {
+    color: '#1d4ed8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  reminder: {
+    color: '#1d4ed8',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 5,
+  },
+  time: {
+    color: '#34465a',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 6,
   },
   title: {
     color: '#182635',

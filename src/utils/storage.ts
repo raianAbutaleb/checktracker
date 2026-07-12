@@ -17,14 +17,16 @@ export async function loadTasks() {
     return [];
   }
 
-  return parsedTasks.filter(isTask);
+  return parsedTasks.filter(isStoredTask).map(normalizeTask);
 }
 
 export async function saveTasks(tasks: Task[]) {
   await AsyncStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
 }
 
-function isTask(value: unknown): value is Task {
+type StoredTask = Partial<Task> & Pick<Task, 'id' | 'title' | 'createdAt' | 'completed'>;
+
+function isStoredTask(value: unknown): value is StoredTask {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -37,4 +39,14 @@ function isTask(value: unknown): value is Task {
     typeof task.createdAt === 'string' &&
     typeof task.completed === 'boolean'
   );
+}
+
+function normalizeTask(task: StoredTask): Task {
+  return {
+    ...task,
+    startTime: typeof task.startTime === 'string' ? task.startTime : '',
+    endTime: typeof task.endTime === 'string' ? task.endTime : '',
+    hasReminder:
+      typeof task.hasReminder === 'boolean' ? task.hasReminder : false,
+  };
 }

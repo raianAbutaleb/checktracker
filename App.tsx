@@ -23,6 +23,10 @@ import { loadTasks, saveTasks } from './src/utils/storage';
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskTitle, setTaskTitle] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [hasReminder, setHasReminder] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
   const [hasLoadedTasks, setHasLoadedTasks] = useState(false);
 
@@ -72,22 +76,52 @@ export default function App() {
     return tasks;
   }, [activeFilter, tasks]);
 
-  function addTask() {
+  function resetComposer() {
+    setTaskTitle('');
+    setStartTime('');
+    setEndTime('');
+    setHasReminder(false);
+    setEditingTaskId(null);
+  }
+
+  function saveTask() {
     const trimmedTitle = taskTitle.trim();
 
     if (!trimmedTitle) {
       return;
     }
 
+    if (editingTaskId) {
+      setTasks((currentTasks) =>
+        currentTasks.map((task) =>
+          task.id === editingTaskId
+            ? {
+                ...task,
+                title: trimmedTitle,
+                startTime: startTime.trim(),
+                endTime: endTime.trim(),
+                hasReminder,
+              }
+            : task,
+        ),
+      );
+      resetComposer();
+      Keyboard.dismiss();
+      return;
+    }
+
     const task: Task = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       title: trimmedTitle,
+      startTime: startTime.trim(),
+      endTime: endTime.trim(),
+      hasReminder,
       createdAt: new Date().toISOString(),
       completed: false,
     };
 
     setTasks((currentTasks) => [task, ...currentTasks]);
-    setTaskTitle('');
+    resetComposer();
     setActiveFilter('all');
     Keyboard.dismiss();
   }
@@ -104,9 +138,22 @@ export default function App() {
     setTasks((currentTasks) =>
       currentTasks.filter((task) => task.id !== taskId),
     );
+
+    if (taskId === editingTaskId) {
+      resetComposer();
+    }
+  }
+
+  function startEditingTask(task: Task) {
+    setEditingTaskId(task.id);
+    setTaskTitle(task.title);
+    setStartTime(task.startTime);
+    setEndTime(task.endTime);
+    setHasReminder(task.hasReminder);
   }
 
   const canAddTask = taskTitle.trim().length > 0;
+  const isEditing = editingTaskId !== null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -126,10 +173,10 @@ export default function App() {
 
           <View style={styles.composer}>
             <TextInput
-              accessibilityLabel="New task"
+              accessibilityLabel={isEditing ? 'Edit task' : 'New task'}
               onChangeText={setTaskTitle}
-              onSubmitEditing={addTask}
-              placeholder="Add a task"
+              onSubmitEditing={saveTask}
+              placeholder={isEditing ? 'Edit task' : 'Add a task'}
               placeholderTextColor="#8795a6"
               returnKeyType="done"
               style={styles.input}
@@ -138,11 +185,67 @@ export default function App() {
             <Pressable
               accessibilityRole="button"
               disabled={!canAddTask}
-              onPress={addTask}
+              onPress={saveTask}
               style={[styles.addButton, !canAddTask && styles.disabledButton]}
             >
-              <Text style={styles.addButtonText}>Add</Text>
+              <Text style={styles.addButtonText}>{isEditing ? 'Save' : 'Add'}</Text>
             </Pressable>
+          </View>
+
+          <View style={styles.timeRow}>
+            <TextInput
+              accessibilityLabel="Start time"
+              onChangeText={setStartTime}
+              placeholder="Start time"
+              placeholderTextColor="#8795a6"
+              style={styles.timeInput}
+              value={startTime}
+            />
+            <TextInput
+              accessibilityLabel="End time"
+              onChangeText={setEndTime}
+              placeholder="End time"
+              placeholderTextColor="#8795a6"
+              style={styles.timeInput}
+              value={endTime}
+            />
+          </View>
+
+          <View style={styles.optionRow}>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: hasReminder }}
+              onPress={() => setHasReminder((currentValue) => !currentValue)}
+              style={[
+                styles.reminderButton,
+                hasReminder && styles.activeReminderButton,
+              ]}
+            >
+              <View
+                style={[
+                  styles.reminderDot,
+                  hasReminder && styles.activeReminderDot,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.reminderButtonText,
+                  hasReminder && styles.activeReminderButtonText,
+                ]}
+              >
+                Reminder
+              </Text>
+            </Pressable>
+
+            {isEditing ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={resetComposer}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonText}>Cancel edit</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <FilterTabs
@@ -160,6 +263,7 @@ export default function App() {
             renderItem={({ item }) => (
               <TaskItem
                 onDelete={deleteTask}
+                onEdit={startEditingTask}
                 onToggle={toggleTask}
                 task={item}
               />
@@ -185,6 +289,27 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800',
+  },
+  activeReminderButton: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#2563eb',
+  },
+  activeReminderButtonText: {
+    color: '#1d4ed8',
+  },
+  activeReminderDot: {
+    backgroundColor: '#2563eb',
+  },
+  cancelButton: {
+    alignItems: 'center',
+    minHeight: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cancelButtonText: {
+    color: '#b42318',
+    fontSize: 14,
+    fontWeight: '700',
   },
   composer: {
     alignItems: 'center',
@@ -229,6 +354,33 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     paddingTop: 18,
   },
+  optionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  reminderButton: {
+    alignItems: 'center',
+    borderColor: '#cdd8e5',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 9,
+    minHeight: 38,
+    paddingHorizontal: 12,
+  },
+  reminderButtonText: {
+    color: '#34465a',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  reminderDot: {
+    backgroundColor: '#a8b4c4',
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
   safeArea: {
     backgroundColor: '#f4f7fb',
     flex: 1,
@@ -245,5 +397,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
     marginTop: 6,
+  },
+  timeInput: {
+    backgroundColor: '#ffffff',
+    borderColor: '#cdd8e5',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#182635',
+    flex: 1,
+    fontSize: 15,
+    height: 46,
+    paddingHorizontal: 14,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
   },
 });
