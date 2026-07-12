@@ -19,15 +19,29 @@ import { FilterTabs } from './src/components/FilterTabs';
 import { TaskItem } from './src/components/TaskItem';
 import type { ArchivedTask, Task, TaskFilter } from './src/types/task';
 import {
+  clearCurrentUsername,
   loadHistoryTasks,
+  loadCurrentUsername,
   loadTasks,
+  loadUserAccount,
+  saveCurrentUsername,
   saveHistoryTasks,
   saveTasks,
+  saveUserAccount,
+  type UserAccount,
 } from './src/utils/storage';
 
 type AppView = 'tasks' | 'history';
+type AuthMode = 'signIn' | 'signUp';
 
 export default function App() {
+  const [savedAccount, setSavedAccount] = useState<UserAccount | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode>('signIn');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [hasLoadedAuth, setHasLoadedAuth] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [historyTasks, setHistoryTasks] = useState<ArchivedTask[]>([]);
   const [taskTitle, setTaskTitle] = useState('');
@@ -38,6 +52,32 @@ export default function App() {
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
   const [activeView, setActiveView] = useState<AppView>('tasks');
   const [hasLoadedTasks, setHasLoadedTasks] = useState(false);
+
+  useEffect(() => {
+    async function restoreAuth() {
+      try {
+        const [restoredAccount, restoredUsername] = await Promise.all([
+          loadUserAccount(),
+          loadCurrentUsername(),
+        ]);
+
+        const validSession =
+          restoredAccount && restoredUsername === restoredAccount.username
+            ? restoredUsername
+            : null;
+
+        setSavedAccount(restoredAccount);
+        setCurrentUsername(validSession);
+        setAuthMode(restoredAccount ? 'signIn' : 'signUp');
+      } catch {
+        Alert.alert('Sign in error', 'Saved account details could not be loaded.');
+      } finally {
+        setHasLoadedAuth(true);
+      }
+    }
+
+    restoreAuth();
+  }, []);
 
   useEffect(() => {
     async function restoreTasks() {
@@ -212,9 +252,199 @@ export default function App() {
     );
   }
 
+  async function submitAuth() {
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedUsername || !trimmedPassword) {
+      setAuthError('Enter a username and password.');
+      return;
+    }
+
+    if (authMode === 'signUp') {
+      const account = {
+        username: trimmedUsername,
+        password: trimmedPassword,
+      };
+
+      try {
+        await Promise.all([
+          saveUserAccount(account),
+          saveCurrentUsername(trimmedUsername),
+        ]);
+
+        setSavedAccount(account);
+        setCurrentUsername(trimmedUsername);
+        setAuthError('');
+        setUsername('');
+        setPassword('');
+        Keyboard.dismiss();
+      } catch {
+        setAuthError('Account could not be saved on this device.');
+      }
+
+      return;
+    }
+
+    if (!savedAccount) {
+      setAuthMode('signUp');
+      setAuthError('Create an account first.');
+      return;
+    }
+
+    if (
+      savedAccount.username !== trimmedUsername ||
+      savedAccount.password !== trimmedPassword
+    ) {
+      setAuthError('Username or password is incorrect.');
+      return;
+    }
+
+    try {
+      await saveCurrentUsername(trimmedUsername);
+      setCurrentUsername(trimmedUsername);
+      setAuthError('');
+      setUsername('');
+      setPassword('');
+      Keyboard.dismiss();
+    } catch {
+      setAuthError('Sign in could not be saved on this device.');
+    }
+  }
+
+  async function signOut() {
+    try {
+      await clearCurrentUsername();
+      setCurrentUsername(null);
+      setUsername('');
+      setPassword('');
+      setAuthError('');
+      resetComposer();
+      setActiveView('tasks');
+    } catch {
+      Alert.alert('Sign out error', 'You could not be signed out.');
+    }
+  }
+
+  function switchAuthMode(nextMode: AuthMode) {
+    setAuthMode(nextMode);
+    setAuthError('');
+    setPassword('');
+  }
+
   const canAddTask = taskTitle.trim().length > 0;
+  const canSubmitAuth = username.trim().length > 0 && password.trim().length > 0;
   const isEditing = editingTaskId !== null;
   const isHistoryView = activeView === 'history';
+
+  if (!hasLoadedAuth) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <View style={styles.authContainer}>
+          <Text style={styles.authTitle}>checktracker</Text>
+          <Text style={styles.authSubtitle}>Loading your account...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!currentUsername) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardView}
+        >
+          <View style={styles.authContainer}>
+            <Text style={styles.eyebrow}>Daily Task Tracker</Text>
+            <Text style={styles.authTitle}>checktracker</Text>
+            <Text style={styles.authSubtitle}>
+              Sign in to keep your tasks private on this device.
+            </Text>
+
+            <View style={styles.authPanel}>
+              <View style={styles.authSwitch}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: authMode === 'signIn' }}
+                  onPress={() => switchAuthMode('signIn')}
+                  style={[
+                    styles.authSwitchButton,
+                    authMode === 'signIn' && styles.activeViewSwitchButton,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.authSwitchText,
+                      authMode === 'signIn' && styles.activeViewSwitchText,
+                    ]}
+                  >
+                    Sign In
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: authMode === 'signUp' }}
+                  onPress={() => switchAuthMode('signUp')}
+                  style={[
+                    styles.authSwitchButton,
+                    authMode === 'signUp' && styles.activeViewSwitchButton,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.authSwitchText,
+                      authMode === 'signUp' && styles.activeViewSwitchText,
+                    ]}
+                  >
+                    Sign Up
+                  </Text>
+                </Pressable>
+              </View>
+
+              <TextInput
+                accessibilityLabel="Username"
+                autoCapitalize="none"
+                onChangeText={setUsername}
+                placeholder="Username"
+                placeholderTextColor="#8a9488"
+                returnKeyType="next"
+                style={styles.authInput}
+                value={username}
+              />
+              <TextInput
+                accessibilityLabel="Password"
+                onChangeText={setPassword}
+                onSubmitEditing={submitAuth}
+                placeholder="Password"
+                placeholderTextColor="#8a9488"
+                returnKeyType="done"
+                secureTextEntry
+                style={styles.authInput}
+                value={password}
+              />
+
+              {authError ? <Text style={styles.authError}>{authError}</Text> : null}
+
+              <Pressable
+                accessibilityRole="button"
+                disabled={!canSubmitAuth}
+                onPress={submitAuth}
+                style={[styles.authButton, !canSubmitAuth && styles.disabledButton]}
+              >
+                <Text style={styles.addButtonText}>
+                  {authMode === 'signIn' ? 'Sign In' : 'Create Account'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -230,6 +460,16 @@ export default function App() {
             <Text style={styles.subtitle}>
               Keep today visible, and keep old tasks close when you need them.
             </Text>
+            <View style={styles.accountRow}>
+              <Text style={styles.accountText}>Signed in as {currentUsername}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={signOut}
+                style={styles.signOutButton}
+              >
+                <Text style={styles.signOutText}>Sign out</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.viewSwitch}>
@@ -419,6 +659,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
+  accountRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  accountText: {
+    color: '#667266',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   activeReminderButton: {
     backgroundColor: '#e4eee6',
     borderColor: '#6f8f79',
@@ -571,6 +824,72 @@ const styles = StyleSheet.create({
   activeViewSwitchText: {
     color: '#fffdf8',
   },
+  authButton: {
+    alignItems: 'center',
+    backgroundColor: '#5f7f6a',
+    borderRadius: 8,
+    height: 50,
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  authContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  authError: {
+    color: '#9f5f56',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  authInput: {
+    backgroundColor: '#fffdf8',
+    borderColor: '#d8ded2',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#253029',
+    fontSize: 16,
+    height: 50,
+    paddingHorizontal: 14,
+  },
+  authPanel: {
+    gap: 12,
+    marginTop: 26,
+  },
+  authSubtitle: {
+    color: '#667266',
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 8,
+  },
+  authSwitch: {
+    backgroundColor: '#e7e5dc',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 6,
+    padding: 6,
+  },
+  authSwitchButton: {
+    alignItems: 'center',
+    borderRadius: 6,
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  authSwitchText: {
+    color: '#4a574d',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  authTitle: {
+    color: '#253029',
+    fontSize: 40,
+    fontWeight: '900',
+    letterSpacing: 0,
+    marginTop: 6,
+  },
   viewSwitch: {
     backgroundColor: '#e7e5dc',
     borderRadius: 8,
@@ -590,6 +909,20 @@ const styles = StyleSheet.create({
   viewSwitchText: {
     color: '#4a574d',
     fontSize: 14,
+    fontWeight: '800',
+  },
+  signOutButton: {
+    alignItems: 'center',
+    borderColor: '#d8ded2',
+    borderRadius: 6,
+    borderWidth: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  signOutText: {
+    color: '#4f6f59',
+    fontSize: 13,
     fontWeight: '800',
   },
 });
