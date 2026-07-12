@@ -17,24 +17,38 @@ import {
 import { EmptyState } from './src/components/EmptyState';
 import { FilterTabs } from './src/components/FilterTabs';
 import { TaskItem } from './src/components/TaskItem';
-import type { Task, TaskFilter } from './src/types/task';
-import { loadTasks, saveTasks } from './src/utils/storage';
+import type { ArchivedTask, Task, TaskFilter } from './src/types/task';
+import {
+  loadHistoryTasks,
+  loadTasks,
+  saveHistoryTasks,
+  saveTasks,
+} from './src/utils/storage';
+
+type AppView = 'tasks' | 'history';
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [historyTasks, setHistoryTasks] = useState<ArchivedTask[]>([]);
   const [taskTitle, setTaskTitle] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [hasReminder, setHasReminder] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
+  const [activeView, setActiveView] = useState<AppView>('tasks');
   const [hasLoadedTasks, setHasLoadedTasks] = useState(false);
 
   useEffect(() => {
     async function restoreTasks() {
       try {
-        const restoredTasks = await loadTasks();
+        const [restoredTasks, restoredHistoryTasks] = await Promise.all([
+          loadTasks(),
+          loadHistoryTasks(),
+        ]);
+
         setTasks(restoredTasks);
+        setHistoryTasks(restoredHistoryTasks);
       } catch {
         Alert.alert('Storage error', 'Saved tasks could not be loaded.');
       } finally {
@@ -54,6 +68,16 @@ export default function App() {
       Alert.alert('Storage error', 'Your latest task changes could not be saved.');
     });
   }, [hasLoadedTasks, tasks]);
+
+  useEffect(() => {
+    if (!hasLoadedTasks) {
+      return;
+    }
+
+    saveHistoryTasks(historyTasks).catch(() => {
+      Alert.alert('Storage error', 'Your latest history changes could not be saved.');
+    });
+  }, [hasLoadedTasks, historyTasks]);
 
   const counts = useMemo(
     () => ({
@@ -135,6 +159,18 @@ export default function App() {
   }
 
   function deleteTask(taskId: string) {
+    const taskToArchive = tasks.find((task) => task.id === taskId);
+
+    if (taskToArchive) {
+      setHistoryTasks((currentHistoryTasks) => [
+        {
+          ...taskToArchive,
+          archivedAt: new Date().toISOString(),
+        },
+        ...currentHistoryTasks,
+      ]);
+    }
+
     setTasks((currentTasks) =>
       currentTasks.filter((task) => task.id !== taskId),
     );
@@ -150,10 +186,35 @@ export default function App() {
     setStartTime(task.startTime);
     setEndTime(task.endTime);
     setHasReminder(task.hasReminder);
+    setActiveView('tasks');
+  }
+
+  function restoreTask(taskId: string) {
+    const taskToRestore = historyTasks.find((task) => task.id === taskId);
+
+    if (!taskToRestore) {
+      return;
+    }
+
+    const { archivedAt: _archivedAt, ...restoredTask } = taskToRestore;
+
+    setTasks((currentTasks) => [restoredTask, ...currentTasks]);
+    setHistoryTasks((currentHistoryTasks) =>
+      currentHistoryTasks.filter((task) => task.id !== taskId),
+    );
+    setActiveView('tasks');
+    setActiveFilter('all');
+  }
+
+  function permanentlyDeleteHistoryTask(taskId: string) {
+    setHistoryTasks((currentHistoryTasks) =>
+      currentHistoryTasks.filter((task) => task.id !== taskId),
+    );
   }
 
   const canAddTask = taskTitle.trim().length > 0;
   const isEditing = editingTaskId !== null;
+  const isHistoryView = activeView === 'history';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -167,106 +228,174 @@ export default function App() {
             <Text style={styles.eyebrow}>Daily Task Tracker</Text>
             <Text style={styles.title}>checktracker</Text>
             <Text style={styles.subtitle}>
-              Keep today visible, simple, and saved on this device.
+              Keep today visible, and keep old tasks close when you need them.
             </Text>
           </View>
 
-          <View style={styles.composer}>
-            <TextInput
-              accessibilityLabel={isEditing ? 'Edit task' : 'New task'}
-              onChangeText={setTaskTitle}
-              onSubmitEditing={saveTask}
-              placeholder={isEditing ? 'Edit task' : 'Add a task'}
-              placeholderTextColor="#8a9488"
-              returnKeyType="done"
-              style={styles.input}
-              value={taskTitle}
-            />
+          <View style={styles.viewSwitch}>
             <Pressable
               accessibilityRole="button"
-              disabled={!canAddTask}
-              onPress={saveTask}
-              style={[styles.addButton, !canAddTask && styles.disabledButton]}
-            >
-              <Text style={styles.addButtonText}>{isEditing ? 'Save' : 'Add'}</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.timeRow}>
-            <TextInput
-              accessibilityLabel="Start time"
-              onChangeText={setStartTime}
-              placeholder="Start time"
-              placeholderTextColor="#8a9488"
-              style={styles.timeInput}
-              value={startTime}
-            />
-            <TextInput
-              accessibilityLabel="End time"
-              onChangeText={setEndTime}
-              placeholder="End time"
-              placeholderTextColor="#8a9488"
-              style={styles.timeInput}
-              value={endTime}
-            />
-          </View>
-
-          <View style={styles.optionRow}>
-            <Pressable
-              accessibilityRole="switch"
-              accessibilityState={{ checked: hasReminder }}
-              onPress={() => setHasReminder((currentValue) => !currentValue)}
+              accessibilityState={{ selected: activeView === 'tasks' }}
+              onPress={() => setActiveView('tasks')}
               style={[
-                styles.reminderButton,
-                hasReminder && styles.activeReminderButton,
+                styles.viewSwitchButton,
+                activeView === 'tasks' && styles.activeViewSwitchButton,
               ]}
             >
-              <View
-                style={[
-                  styles.reminderDot,
-                  hasReminder && styles.activeReminderDot,
-                ]}
-              />
               <Text
                 style={[
-                  styles.reminderButtonText,
-                  hasReminder && styles.activeReminderButtonText,
+                  styles.viewSwitchText,
+                  activeView === 'tasks' && styles.activeViewSwitchText,
                 ]}
               >
-                Reminder
+                Tasks
               </Text>
             </Pressable>
 
-            {isEditing ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={resetComposer}
-                style={styles.cancelButton}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: isHistoryView }}
+              onPress={() => {
+                resetComposer();
+                setActiveView('history');
+              }}
+              style={[
+                styles.viewSwitchButton,
+                isHistoryView && styles.activeViewSwitchButton,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.viewSwitchText,
+                  isHistoryView && styles.activeViewSwitchText,
+                ]}
               >
-                <Text style={styles.cancelButtonText}>Cancel edit</Text>
-              </Pressable>
-            ) : null}
+                History ({historyTasks.length})
+              </Text>
+            </Pressable>
           </View>
 
-          <FilterTabs
-            activeFilter={activeFilter}
-            counts={counts}
-            onChange={setActiveFilter}
-          />
+          {!isHistoryView ? (
+            <>
+              <View style={styles.composer}>
+                <TextInput
+                  accessibilityLabel={isEditing ? 'Edit task' : 'New task'}
+                  onChangeText={setTaskTitle}
+                  onSubmitEditing={saveTask}
+                  placeholder={isEditing ? 'Edit task' : 'Add a task'}
+                  placeholderTextColor="#8a9488"
+                  returnKeyType="done"
+                  style={styles.input}
+                  value={taskTitle}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={!canAddTask}
+                  onPress={saveTask}
+                  style={[styles.addButton, !canAddTask && styles.disabledButton]}
+                >
+                  <Text style={styles.addButtonText}>
+                    {isEditing ? 'Save' : 'Add'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.timeRow}>
+                <TextInput
+                  accessibilityLabel="Start time"
+                  onChangeText={setStartTime}
+                  placeholder="Start time"
+                  placeholderTextColor="#8a9488"
+                  style={styles.timeInput}
+                  value={startTime}
+                />
+                <TextInput
+                  accessibilityLabel="End time"
+                  onChangeText={setEndTime}
+                  placeholder="End time"
+                  placeholderTextColor="#8a9488"
+                  style={styles.timeInput}
+                  value={endTime}
+                />
+              </View>
+
+              <View style={styles.optionRow}>
+                <Pressable
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: hasReminder }}
+                  onPress={() => setHasReminder((currentValue) => !currentValue)}
+                  style={[
+                    styles.reminderButton,
+                    hasReminder && styles.activeReminderButton,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.reminderDot,
+                      hasReminder && styles.activeReminderDot,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.reminderButtonText,
+                      hasReminder && styles.activeReminderButtonText,
+                    ]}
+                  >
+                    Reminder
+                  </Text>
+                </Pressable>
+
+                {isEditing ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={resetComposer}
+                    style={styles.cancelButton}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel edit</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <FilterTabs
+                activeFilter={activeFilter}
+                counts={counts}
+                onChange={setActiveFilter}
+              />
+            </>
+          ) : null}
 
           <FlatList
-            ListEmptyComponent={<EmptyState filter={activeFilter} />}
+            ListEmptyComponent={
+              isHistoryView ? (
+                <View style={styles.historyEmptyState}>
+                  <Text style={styles.historyEmptyTitle}>No old tasks yet</Text>
+                  <Text style={styles.historyEmptyMessage}>
+                    Deleted tasks will move here so you can restore them later.
+                  </Text>
+                </View>
+              ) : (
+                <EmptyState filter={activeFilter} />
+              )
+            }
             contentContainerStyle={styles.listContent}
-            data={filteredTasks}
+            data={isHistoryView ? historyTasks : filteredTasks}
             keyExtractor={(task) => task.id}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
-              <TaskItem
-                onDelete={deleteTask}
-                onEdit={startEditingTask}
-                onToggle={toggleTask}
-                task={item}
-              />
+              isHistoryView ? (
+                <TaskItem
+                  onDelete={permanentlyDeleteHistoryTask}
+                  onRestore={restoreTask}
+                  task={item}
+                />
+              ) : (
+                <TaskItem
+                  onDelete={deleteTask}
+                  onEdit={startEditingTask}
+                  onToggle={toggleTask}
+                  task={item}
+                />
+              )
             )}
             showsVerticalScrollIndicator={false}
           />
@@ -334,6 +463,28 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 10,
+  },
+  historyEmptyMessage: {
+    color: '#667266',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  historyEmptyState: {
+    alignItems: 'center',
+    borderColor: '#d8ded2',
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    marginTop: 18,
+    paddingHorizontal: 24,
+    paddingVertical: 34,
+  },
+  historyEmptyTitle: {
+    color: '#253029',
+    fontSize: 18,
+    fontWeight: '700',
   },
   input: {
     backgroundColor: '#fffdf8',
@@ -413,5 +564,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 10,
+  },
+  activeViewSwitchButton: {
+    backgroundColor: '#5f7f6a',
+  },
+  activeViewSwitchText: {
+    color: '#fffdf8',
+  },
+  viewSwitch: {
+    backgroundColor: '#e7e5dc',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 20,
+    padding: 6,
+  },
+  viewSwitchButton: {
+    alignItems: 'center',
+    borderRadius: 6,
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  viewSwitchText: {
+    color: '#4a574d',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

@@ -8,4 +8,8 @@ export type Task = {
   completed: boolean;
 };
 
+export type ArchivedTask = Task & {
+  archivedAt: string;
+};
+
 export type TaskFilter = 'all' | 'active' | 'completed';

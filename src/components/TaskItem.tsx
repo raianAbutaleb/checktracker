@@ -1,16 +1,24 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { Task } from '../types/task';
+import type { ArchivedTask, Task } from '../types/task';
 import { formatCreatedDate } from '../utils/date';
 
 type TaskItemProps = {
-  task: Task;
+  task: ArchivedTask | Task;
   onDelete: (id: string) => void;
-  onEdit: (task: Task) => void;
-  onToggle: (id: string) => void;
+  onEdit?: (task: Task) => void;
+  onRestore?: (id: string) => void;
+  onToggle?: (id: string) => void;
 };
 
-export function TaskItem({ task, onDelete, onEdit, onToggle }: TaskItemProps) {
+export function TaskItem({
+  task,
+  onDelete,
+  onEdit,
+  onRestore,
+  onToggle,
+}: TaskItemProps) {
+  const isArchived = 'archivedAt' in task;
   const timeLabel =
     task.startTime || task.endTime
       ? `${task.startTime || 'Anytime'} - ${task.endTime || 'Open'}`
@@ -18,17 +26,19 @@ export function TaskItem({ task, onDelete, onEdit, onToggle }: TaskItemProps) {
 
   return (
     <View style={styles.card}>
-      <Pressable
-        accessibilityLabel={
-          task.completed ? 'Mark task as active' : 'Mark task as completed'
-        }
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: task.completed }}
-        onPress={() => onToggle(task.id)}
-        style={[styles.check, task.completed && styles.checked]}
-      >
-        {task.completed ? <Text style={styles.checkMark}>✓</Text> : null}
-      </Pressable>
+      {onToggle ? (
+        <Pressable
+          accessibilityLabel={
+            task.completed ? 'Mark task as active' : 'Mark task as completed'
+          }
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: task.completed }}
+          onPress={() => onToggle(task.id)}
+          style={[styles.check, task.completed && styles.checked]}
+        >
+          {task.completed ? <Text style={styles.checkMark}>✓</Text> : null}
+        </Pressable>
+      ) : null}
 
       <View style={styles.content}>
         <Text
@@ -40,17 +50,35 @@ export function TaskItem({ task, onDelete, onEdit, onToggle }: TaskItemProps) {
         <Text style={styles.time}>{timeLabel}</Text>
         {task.hasReminder ? <Text style={styles.reminder}>Reminder on</Text> : null}
         <Text style={styles.date}>Created {formatCreatedDate(task.createdAt)}</Text>
+        {isArchived ? (
+          <Text style={styles.date}>
+            Moved to history {formatCreatedDate(task.archivedAt)}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityLabel={`Edit ${task.title}`}
-          accessibilityRole="button"
-          onPress={() => onEdit(task)}
-          style={styles.editButton}
-        >
-          <Text style={styles.editText}>Edit</Text>
-        </Pressable>
+        {onEdit && !isArchived ? (
+          <Pressable
+            accessibilityLabel={`Edit ${task.title}`}
+            accessibilityRole="button"
+            onPress={() => onEdit(task)}
+            style={styles.editButton}
+          >
+            <Text style={styles.editText}>Edit</Text>
+          </Pressable>
+        ) : null}
+
+        {onRestore && isArchived ? (
+          <Pressable
+            accessibilityLabel={`Restore ${task.title}`}
+            accessibilityRole="button"
+            onPress={() => onRestore(task.id)}
+            style={styles.editButton}
+          >
+            <Text style={styles.editText}>Restore</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           accessibilityLabel={`Delete ${task.title}`}
@@ -58,7 +86,9 @@ export function TaskItem({ task, onDelete, onEdit, onToggle }: TaskItemProps) {
           onPress={() => onDelete(task.id)}
           style={styles.deleteButton}
         >
-          <Text style={styles.deleteText}>Delete</Text>
+          <Text style={styles.deleteText}>
+            {isArchived ? 'Delete forever' : 'Delete'}
+          </Text>
         </Pressable>
       </View>
     </View>
