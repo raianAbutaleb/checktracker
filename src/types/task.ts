@@ -3,6 +3,7 @@ export type Task = {
   title: string;
   startTime: string;
   endTime: string;
+  notes: string;
   hasReminder: boolean;
   createdAt: string;
   completed: boolean;

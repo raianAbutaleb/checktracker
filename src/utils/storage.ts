@@ -106,6 +106,7 @@ function normalizeTask(task: StoredTask): Task {
     ...task,
     startTime: typeof task.startTime === 'string' ? task.startTime : '',
     endTime: typeof task.endTime === 'string' ? task.endTime : '',
+    notes: typeof task.notes === 'string' ? task.notes : '',
     hasReminder:
       typeof task.hasReminder === 'boolean' ? task.hasReminder : false,
   };

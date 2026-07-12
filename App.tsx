@@ -47,6 +47,7 @@ export default function App() {
   const [taskTitle, setTaskTitle] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [notes, setNotes] = useState('');
   const [hasReminder, setHasReminder] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<TaskFilter>('all');
@@ -144,6 +145,7 @@ export default function App() {
     setTaskTitle('');
     setStartTime('');
     setEndTime('');
+    setNotes('');
     setHasReminder(false);
     setEditingTaskId(null);
   }
@@ -164,6 +166,7 @@ export default function App() {
                 title: trimmedTitle,
                 startTime: startTime.trim(),
                 endTime: endTime.trim(),
+                notes: notes.trim(),
                 hasReminder,
               }
             : task,
@@ -179,6 +182,7 @@ export default function App() {
       title: trimmedTitle,
       startTime: startTime.trim(),
       endTime: endTime.trim(),
+      notes: notes.trim(),
       hasReminder,
       createdAt: new Date().toISOString(),
       completed: false,
@@ -225,6 +229,7 @@ export default function App() {
     setTaskTitle(task.title);
     setStartTime(task.startTime);
     setEndTime(task.endTime);
+    setNotes(task.notes);
     setHasReminder(task.hasReminder);
     setActiveView('tasks');
   }
@@ -559,6 +564,20 @@ export default function App() {
                 />
               </View>
 
+              <View style={styles.notesGroup}>
+                <Text style={styles.notesLabel}>Notes</Text>
+                <TextInput
+                  accessibilityLabel="Task notes"
+                  multiline
+                  onChangeText={setNotes}
+                  placeholder="Add notes"
+                  placeholderTextColor="#8a9488"
+                  style={styles.notesInput}
+                  textAlignVertical="top"
+                  value={notes}
+                />
+              </View>
+
               <View style={styles.optionRow}>
                 <Pressable
                   accessibilityRole="switch"
@@ -757,6 +776,27 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 28,
     paddingTop: 18,
+  },
+  notesGroup: {
+    marginTop: 10,
+  },
+  notesInput: {
+    backgroundColor: '#fffdf8',
+    borderColor: '#d8ded2',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#253029',
+    fontSize: 15,
+    lineHeight: 21,
+    minHeight: 92,
+    paddingHorizontal: 14,
+    paddingTop: 13,
+  },
+  notesLabel: {
+    color: '#667266',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 7,
   },
   optionRow: {
     alignItems: 'center',

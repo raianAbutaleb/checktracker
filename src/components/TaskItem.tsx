@@ -48,6 +48,7 @@ export function TaskItem({
           {task.title}
         </Text>
         <Text style={styles.time}>{timeLabel}</Text>
+        {task.notes ? <Text style={styles.notes}>{task.notes}</Text> : null}
         {task.hasReminder ? <Text style={styles.reminder}>Reminder on</Text> : null}
         <Text style={styles.date}>Created {formatCreatedDate(task.createdAt)}</Text>
         {isArchived ? (
@@ -173,6 +174,12 @@ const styles = StyleSheet.create({
     color: '#4f6f59',
     fontSize: 13,
     fontWeight: '700',
+  },
+  notes: {
+    color: '#5d695f',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6,
   },
   reminder: {
     color: '#4f6f59',
