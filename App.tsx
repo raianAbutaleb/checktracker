@@ -177,7 +177,7 @@ export default function App() {
               onChangeText={setTaskTitle}
               onSubmitEditing={saveTask}
               placeholder={isEditing ? 'Edit task' : 'Add a task'}
-              placeholderTextColor="#8795a6"
+              placeholderTextColor="#8a9488"
               returnKeyType="done"
               style={styles.input}
               value={taskTitle}
@@ -197,7 +197,7 @@ export default function App() {
               accessibilityLabel="Start time"
               onChangeText={setStartTime}
               placeholder="Start time"
-              placeholderTextColor="#8795a6"
+              placeholderTextColor="#8a9488"
               style={styles.timeInput}
               value={startTime}
             />
@@ -205,7 +205,7 @@ export default function App() {
               accessibilityLabel="End time"
               onChangeText={setEndTime}
               placeholder="End time"
-              placeholderTextColor="#8795a6"
+              placeholderTextColor="#8a9488"
               style={styles.timeInput}
               value={endTime}
             />
@@ -279,7 +279,7 @@ export default function App() {
 const styles = StyleSheet.create({
   addButton: {
     alignItems: 'center',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#5f7f6a',
     borderRadius: 8,
     height: 50,
     justifyContent: 'center',
@@ -291,14 +291,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   activeReminderButton: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#2563eb',
+    backgroundColor: '#e4eee6',
+    borderColor: '#6f8f79',
   },
   activeReminderButtonText: {
-    color: '#1d4ed8',
+    color: '#45634f',
   },
   activeReminderDot: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#5f7f6a',
   },
   cancelButton: {
     alignItems: 'center',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   cancelButtonText: {
-    color: '#b42318',
+    color: '#9f5f56',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -323,10 +323,10 @@ const styles = StyleSheet.create({
     paddingTop: 18,
   },
   disabledButton: {
-    backgroundColor: '#a8b4c4',
+    backgroundColor: '#a9b3a8',
   },
   eyebrow: {
-    color: '#2563eb',
+    color: '#5f7f6a',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0,
@@ -336,11 +336,11 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#cdd8e5',
+    backgroundColor: '#fffdf8',
+    borderColor: '#d8ded2',
     borderRadius: 8,
     borderWidth: 1,
-    color: '#182635',
+    color: '#253029',
     flex: 1,
     fontSize: 16,
     height: 50,
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   reminderButton: {
     alignItems: 'center',
-    borderColor: '#cdd8e5',
+    borderColor: '#d8ded2',
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
@@ -371,39 +371,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   reminderButtonText: {
-    color: '#34465a',
+    color: '#4a574d',
     fontSize: 14,
     fontWeight: '800',
   },
   reminderDot: {
-    backgroundColor: '#a8b4c4',
+    backgroundColor: '#b6bfb2',
     borderRadius: 5,
     height: 10,
     width: 10,
   },
   safeArea: {
-    backgroundColor: '#f4f7fb',
+    backgroundColor: '#f6f4ee',
     flex: 1,
   },
   subtitle: {
-    color: '#627386',
+    color: '#667266',
     fontSize: 16,
     lineHeight: 23,
     marginTop: 8,
   },
   title: {
-    color: '#142334',
+    color: '#253029',
     fontSize: 38,
     fontWeight: '900',
     letterSpacing: 0,
     marginTop: 6,
   },
   timeInput: {
-    backgroundColor: '#ffffff',
-    borderColor: '#cdd8e5',
+    backgroundColor: '#fffdf8',
+    borderColor: '#d8ded2',
     borderRadius: 8,
     borderWidth: 1,
-    color: '#182635',
+    color: '#253029',
     flex: 1,
     fontSize: 15,
     height: 46,

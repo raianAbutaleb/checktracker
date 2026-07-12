@@ -45,16 +45,16 @@ export function FilterTabs({ activeFilter, counts, onChange }: FilterTabsProps) 
 
 const styles = StyleSheet.create({
   activeCount: {
-    color: '#ffffff',
+    color: '#fffdf8',
   },
   activeLabel: {
-    color: '#ffffff',
+    color: '#fffdf8',
   },
   activeTab: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#5f7f6a',
   },
   container: {
-    backgroundColor: '#e8eef6',
+    backgroundColor: '#e7e5dc',
     borderRadius: 8,
     flexDirection: 'row',
     gap: 6,
@@ -62,12 +62,12 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   count: {
-    color: '#526477',
+    color: '#67736a',
     fontSize: 12,
     fontWeight: '700',
   },
   label: {
-    color: '#34465a',
+    color: '#4a574d',
     fontSize: 13,
     fontWeight: '700',
   },

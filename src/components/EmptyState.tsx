@@ -24,7 +24,7 @@ export function EmptyState({ filter }: EmptyStateProps) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    borderColor: '#d9e2ec',
+    borderColor: '#d8ded2',
     borderRadius: 8,
     borderStyle: 'dashed',
     borderWidth: 1,
@@ -33,14 +33,14 @@ const styles = StyleSheet.create({
     paddingVertical: 34,
   },
   message: {
-    color: '#627386',
+    color: '#667266',
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
     textAlign: 'center',
   },
   title: {
-    color: '#182635',
+    color: '#253029',
     fontSize: 18,
     fontWeight: '700',
   },
