@@ -8,6 +8,7 @@ type TaskItemProps = {
   onDelete: (id: string) => void;
   onEdit?: (task: Task) => void;
   onRestore?: (id: string) => void;
+  onSpeak?: (task: ArchivedTask | Task) => void;
   onToggle?: (id: string) => void;
 };
 
@@ -16,6 +17,7 @@ export function TaskItem({
   onDelete,
   onEdit,
   onRestore,
+  onSpeak,
   onToggle,
 }: TaskItemProps) {
   const isArchived = 'archivedAt' in task;
@@ -59,6 +61,17 @@ export function TaskItem({
       </View>
 
       <View style={styles.actions}>
+        {onSpeak ? (
+          <Pressable
+            accessibilityLabel={`Read ${task.title}`}
+            accessibilityRole="button"
+            onPress={() => onSpeak(task)}
+            style={styles.speakButton}
+          >
+            <Text style={styles.speakText}>Read</Text>
+          </Pressable>
+        ) : null}
+
         {onEdit && !isArchived ? (
           <Pressable
             accessibilityLabel={`Edit ${task.title}`}
@@ -186,6 +199,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: 5,
+  },
+  speakButton: {
+    alignItems: 'center',
+    backgroundColor: '#e4eee6',
+    borderColor: '#cbd8c9',
+    borderRadius: 6,
+    borderWidth: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  speakText: {
+    color: '#4f6f59',
+    fontSize: 13,
+    fontWeight: '700',
   },
   time: {
     color: '#4a574d',

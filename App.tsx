@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -337,6 +338,48 @@ export default function App() {
     setPassword('');
   }
 
+  function getTaskSpeechText(task: Task | ArchivedTask) {
+    const parts = [
+      task.completed ? 'Completed task.' : 'Active task.',
+      task.title,
+      task.startTime || task.endTime
+        ? `Time: ${task.startTime || 'anytime'} to ${task.endTime || 'open'}`
+        : 'No time set.',
+      task.notes ? `Notes: ${task.notes}` : '',
+      task.hasReminder ? 'Reminder is on.' : '',
+    ];
+
+    return parts.filter(Boolean).join(' ');
+  }
+
+  function speakText(text: string) {
+    Speech.stop();
+    Speech.speak(text, {
+      rate: 0.92,
+      pitch: 1,
+    });
+  }
+
+  function speakTask(task: Task | ArchivedTask) {
+    speakText(getTaskSpeechText(task));
+  }
+
+  function speakVisibleTasks() {
+    const visibleTasks = isHistoryView ? historyTasks : filteredTasks;
+
+    if (visibleTasks.length === 0) {
+      speakText(isHistoryView ? 'No history tasks yet.' : 'No tasks to read.');
+      return;
+    }
+
+    const intro = isHistoryView ? 'History tasks.' : 'Current tasks.';
+    const taskText = visibleTasks
+      .map((task, index) => `Task ${index + 1}. ${getTaskSpeechText(task)}`)
+      .join(' ');
+
+    speakText(`${intro} ${taskText}`);
+  }
+
   const canAddTask = taskTitle.trim().length > 0;
   const canSubmitAuth = username.trim().length > 0 && password.trim().length > 0;
   const isEditing = editingTaskId !== null;
@@ -520,6 +563,23 @@ export default function App() {
             </Pressable>
           </View>
 
+          <View style={styles.voiceRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={speakVisibleTasks}
+              style={styles.voiceButton}
+            >
+              <Text style={styles.voiceButtonText}>Read tasks</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => Speech.stop()}
+              style={styles.stopVoiceButton}
+            >
+              <Text style={styles.stopVoiceText}>Stop voice</Text>
+            </Pressable>
+          </View>
+
           {!isHistoryView ? (
             <>
               <View style={styles.composer}>
@@ -645,12 +705,14 @@ export default function App() {
                 <TaskItem
                   onDelete={permanentlyDeleteHistoryTask}
                   onRestore={restoreTask}
+                  onSpeak={speakTask}
                   task={item}
                 />
               ) : (
                 <TaskItem
                   onDelete={deleteTask}
                   onEdit={startEditingTask}
+                  onSpeak={speakTask}
                   onToggle={toggleTask}
                   task={item}
                 />
@@ -948,6 +1010,42 @@ const styles = StyleSheet.create({
   },
   viewSwitchText: {
     color: '#4a574d',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  voiceButton: {
+    alignItems: 'center',
+    backgroundColor: '#e4eee6',
+    borderColor: '#cbd8c9',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  voiceButtonText: {
+    color: '#4f6f59',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  voiceRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  stopVoiceButton: {
+    alignItems: 'center',
+    borderColor: '#ead3ce',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  stopVoiceText: {
+    color: '#9f5f56',
     fontSize: 14,
     fontWeight: '800',
   },
