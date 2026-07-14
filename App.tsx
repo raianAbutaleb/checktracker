@@ -18,14 +18,18 @@ import {
 import { EmptyState } from './src/components/EmptyState';
 import { FilterTabs } from './src/components/FilterTabs';
 import { TaskItem } from './src/components/TaskItem';
+import type { Language } from './src/i18n';
+import { translations } from './src/i18n';
 import type { ArchivedTask, Task, TaskFilter } from './src/types/task';
 import {
   clearCurrentUsername,
+  loadLanguage,
   loadHistoryTasks,
   loadCurrentUsername,
   loadTasks,
   loadUserAccount,
   saveCurrentUsername,
+  saveLanguage,
   saveHistoryTasks,
   saveTasks,
   saveUserAccount,
@@ -36,6 +40,7 @@ type AppView = 'tasks' | 'history';
 type AuthMode = 'signIn' | 'signUp';
 
 export default function App() {
+  const [language, setLanguage] = useState<Language>('en');
   const [savedAccount, setSavedAccount] = useState<UserAccount | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('signIn');
@@ -58,9 +63,10 @@ export default function App() {
   useEffect(() => {
     async function restoreAuth() {
       try {
-        const [restoredAccount, restoredUsername] = await Promise.all([
+        const [restoredAccount, restoredUsername, restoredLanguage] = await Promise.all([
           loadUserAccount(),
           loadCurrentUsername(),
+          loadLanguage(),
         ]);
 
         const validSession =
@@ -70,9 +76,13 @@ export default function App() {
 
         setSavedAccount(restoredAccount);
         setCurrentUsername(validSession);
+        setLanguage(restoredLanguage);
         setAuthMode(restoredAccount ? 'signIn' : 'signUp');
       } catch {
-        Alert.alert('Sign in error', 'Saved account details could not be loaded.');
+        Alert.alert(
+          translations.en.signInErrorTitle,
+          translations.en.signInLoadError,
+        );
       } finally {
         setHasLoadedAuth(true);
       }
@@ -80,6 +90,16 @@ export default function App() {
 
     restoreAuth();
   }, []);
+
+  const t = translations[language];
+  const isRtl = language === 'ar';
+
+  async function toggleLanguage() {
+    const nextLanguage = language === 'en' ? 'ar' : 'en';
+
+    setLanguage(nextLanguage);
+    await saveLanguage(nextLanguage);
+  }
 
   useEffect(() => {
     async function restoreTasks() {
@@ -92,7 +112,7 @@ export default function App() {
         setTasks(restoredTasks);
         setHistoryTasks(restoredHistoryTasks);
       } catch {
-        Alert.alert('Storage error', 'Saved tasks could not be loaded.');
+        Alert.alert(t.storageErrorTitle, t.storageLoadError);
       } finally {
         setHasLoadedTasks(true);
       }
@@ -107,7 +127,7 @@ export default function App() {
     }
 
     saveTasks(tasks).catch(() => {
-      Alert.alert('Storage error', 'Your latest task changes could not be saved.');
+      Alert.alert(t.storageErrorTitle, t.taskSaveError);
     });
   }, [hasLoadedTasks, tasks]);
 
@@ -117,7 +137,7 @@ export default function App() {
     }
 
     saveHistoryTasks(historyTasks).catch(() => {
-      Alert.alert('Storage error', 'Your latest history changes could not be saved.');
+      Alert.alert(t.storageErrorTitle, t.historySaveError);
     });
   }, [hasLoadedTasks, historyTasks]);
 
@@ -263,7 +283,7 @@ export default function App() {
     const trimmedPassword = password.trim();
 
     if (!trimmedUsername || !trimmedPassword) {
-      setAuthError('Enter a username and password.');
+      setAuthError(t.enterCredentials);
       return;
     }
 
@@ -286,7 +306,7 @@ export default function App() {
         setPassword('');
         Keyboard.dismiss();
       } catch {
-        setAuthError('Account could not be saved on this device.');
+        setAuthError(t.accountSaveError);
       }
 
       return;
@@ -294,7 +314,7 @@ export default function App() {
 
     if (!savedAccount) {
       setAuthMode('signUp');
-      setAuthError('Create an account first.');
+      setAuthError(t.createAccountFirst);
       return;
     }
 
@@ -302,7 +322,7 @@ export default function App() {
       savedAccount.username !== trimmedUsername ||
       savedAccount.password !== trimmedPassword
     ) {
-      setAuthError('Username or password is incorrect.');
+      setAuthError(t.incorrectCredentials);
       return;
     }
 
@@ -314,7 +334,7 @@ export default function App() {
       setPassword('');
       Keyboard.dismiss();
     } catch {
-      setAuthError('Sign in could not be saved on this device.');
+      setAuthError(t.signInSaveError);
     }
   }
 
@@ -328,7 +348,7 @@ export default function App() {
       resetComposer();
       setActiveView('tasks');
     } catch {
-      Alert.alert('Sign out error', 'You could not be signed out.');
+      Alert.alert(t.signOutErrorTitle, t.signOutError);
     }
   }
 
@@ -340,13 +360,13 @@ export default function App() {
 
   function getTaskSpeechText(task: Task | ArchivedTask) {
     const parts = [
-      task.completed ? 'Completed task.' : 'Active task.',
+      task.completed ? t.task.completed : t.task.active,
       task.title,
       task.startTime || task.endTime
-        ? `Time: ${task.startTime || 'anytime'} to ${task.endTime || 'open'}`
-        : 'No time set.',
-      task.notes ? `Notes: ${task.notes}` : '',
-      task.hasReminder ? 'Reminder is on.' : '',
+        ? `${t.task.timeSpeech}: ${task.startTime || t.task.anytime} - ${task.endTime || t.task.open}`
+        : t.task.noTime,
+      task.notes ? `${t.task.notesSpeech}: ${task.notes}` : '',
+      task.hasReminder ? t.task.reminderSpeech : '',
     ];
 
     return parts.filter(Boolean).join(' ');
@@ -355,6 +375,7 @@ export default function App() {
   function speakText(text: string) {
     Speech.stop();
     Speech.speak(text, {
+      language: language === 'ar' ? 'ar-SA' : 'en-US',
       rate: 0.92,
       pitch: 1,
     });
@@ -368,13 +389,13 @@ export default function App() {
     const visibleTasks = isHistoryView ? historyTasks : filteredTasks;
 
     if (visibleTasks.length === 0) {
-      speakText(isHistoryView ? 'No history tasks yet.' : 'No tasks to read.');
+      speakText(isHistoryView ? t.task.noHistorySpeech : t.task.noTasksSpeech);
       return;
     }
 
-    const intro = isHistoryView ? 'History tasks.' : 'Current tasks.';
+    const intro = isHistoryView ? t.task.historyTasksSpeech : t.task.currentTasksSpeech;
     const taskText = visibleTasks
-      .map((task, index) => `Task ${index + 1}. ${getTaskSpeechText(task)}`)
+      .map((task, index) => `${t.task.taskSpeech} ${index + 1}. ${getTaskSpeechText(task)}`)
       .join(' ');
 
     speakText(`${intro} ${taskText}`);
@@ -390,8 +411,12 @@ export default function App() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
         <View style={styles.authContainer}>
-          <Text style={styles.authTitle}>checktracker</Text>
-          <Text style={styles.authSubtitle}>Loading your account...</Text>
+          <Text style={[styles.authTitle, isRtl && styles.rtlText]}>
+            {t.appName}
+          </Text>
+          <Text style={[styles.authSubtitle, isRtl && styles.rtlText]}>
+            {t.loadingAccount}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -406,14 +431,27 @@ export default function App() {
           style={styles.keyboardView}
         >
           <View style={styles.authContainer}>
-            <Text style={styles.eyebrow}>Daily Task Tracker</Text>
-            <Text style={styles.authTitle}>checktracker</Text>
-            <Text style={styles.authSubtitle}>
-              Sign in to keep your tasks private on this device.
+            <View style={[styles.languageRow, isRtl && styles.rtlRow]}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={toggleLanguage}
+                style={styles.languageButton}
+              >
+                <Text style={styles.languageButtonText}>{t.switchLanguage}</Text>
+              </Pressable>
+            </View>
+            <Text style={[styles.eyebrow, isRtl && styles.rtlText]}>
+              {t.dailyTracker}
+            </Text>
+            <Text style={[styles.authTitle, isRtl && styles.rtlText]}>
+              {t.appName}
+            </Text>
+            <Text style={[styles.authSubtitle, isRtl && styles.rtlText]}>
+              {t.authSubtitle}
             </Text>
 
             <View style={styles.authPanel}>
-              <View style={styles.authSwitch}>
+              <View style={[styles.authSwitch, isRtl && styles.rtlRow]}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ selected: authMode === 'signIn' }}
@@ -429,7 +467,7 @@ export default function App() {
                       authMode === 'signIn' && styles.activeViewSwitchText,
                     ]}
                   >
-                    Sign In
+                    {t.signIn}
                   </Text>
                 </Pressable>
 
@@ -448,34 +486,38 @@ export default function App() {
                       authMode === 'signUp' && styles.activeViewSwitchText,
                     ]}
                   >
-                    Sign Up
+                    {t.signUp}
                   </Text>
                 </Pressable>
               </View>
 
               <TextInput
-                accessibilityLabel="Username"
+                accessibilityLabel={t.username}
                 autoCapitalize="none"
                 onChangeText={setUsername}
-                placeholder="Username"
+                placeholder={t.username}
                 placeholderTextColor="#8a9488"
                 returnKeyType="next"
-                style={styles.authInput}
+                style={[styles.authInput, isRtl && styles.rtlInput]}
                 value={username}
               />
               <TextInput
-                accessibilityLabel="Password"
+                accessibilityLabel={t.password}
                 onChangeText={setPassword}
                 onSubmitEditing={submitAuth}
-                placeholder="Password"
+                placeholder={t.password}
                 placeholderTextColor="#8a9488"
                 returnKeyType="done"
                 secureTextEntry
-                style={styles.authInput}
+                style={[styles.authInput, isRtl && styles.rtlInput]}
                 value={password}
               />
 
-              {authError ? <Text style={styles.authError}>{authError}</Text> : null}
+              {authError ? (
+                <Text style={[styles.authError, isRtl && styles.rtlText]}>
+                  {authError}
+                </Text>
+              ) : null}
 
               <Pressable
                 accessibilityRole="button"
@@ -484,7 +526,7 @@ export default function App() {
                 style={[styles.authButton, !canSubmitAuth && styles.disabledButton]}
               >
                 <Text style={styles.addButtonText}>
-                  {authMode === 'signIn' ? 'Sign In' : 'Create Account'}
+                  {authMode === 'signIn' ? t.signIn : t.createAccount}
                 </Text>
               </Pressable>
             </View>
@@ -503,24 +545,37 @@ export default function App() {
       >
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>Daily Task Tracker</Text>
-            <Text style={styles.title}>checktracker</Text>
-            <Text style={styles.subtitle}>
-              Keep today visible, and keep old tasks close when you need them.
+            <View style={[styles.languageRow, isRtl && styles.rtlRow]}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={toggleLanguage}
+                style={styles.languageButton}
+              >
+                <Text style={styles.languageButtonText}>{t.switchLanguage}</Text>
+              </Pressable>
+            </View>
+            <Text style={[styles.eyebrow, isRtl && styles.rtlText]}>
+              {t.dailyTracker}
             </Text>
-            <View style={styles.accountRow}>
-              <Text style={styles.accountText}>Signed in as {currentUsername}</Text>
+            <Text style={[styles.title, isRtl && styles.rtlText]}>{t.appName}</Text>
+            <Text style={[styles.subtitle, isRtl && styles.rtlText]}>
+              {t.subtitle}
+            </Text>
+            <View style={[styles.accountRow, isRtl && styles.rtlRow]}>
+              <Text style={[styles.accountText, isRtl && styles.rtlText]}>
+                {t.signedInAs} {currentUsername}
+              </Text>
               <Pressable
                 accessibilityRole="button"
                 onPress={signOut}
                 style={styles.signOutButton}
               >
-                <Text style={styles.signOutText}>Sign out</Text>
+                <Text style={styles.signOutText}>{t.signOut}</Text>
               </Pressable>
             </View>
           </View>
 
-          <View style={styles.viewSwitch}>
+          <View style={[styles.viewSwitch, isRtl && styles.rtlRow]}>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: activeView === 'tasks' }}
@@ -536,7 +591,7 @@ export default function App() {
                   activeView === 'tasks' && styles.activeViewSwitchText,
                 ]}
               >
-                Tasks
+                {t.tasks}
               </Text>
             </Pressable>
 
@@ -558,25 +613,25 @@ export default function App() {
                   isHistoryView && styles.activeViewSwitchText,
                 ]}
               >
-                History ({historyTasks.length})
+                {t.history} ({historyTasks.length})
               </Text>
             </Pressable>
           </View>
 
-          <View style={styles.voiceRow}>
+          <View style={[styles.voiceRow, isRtl && styles.rtlRow]}>
             <Pressable
               accessibilityRole="button"
               onPress={speakVisibleTasks}
               style={styles.voiceButton}
             >
-              <Text style={styles.voiceButtonText}>Read tasks</Text>
+              <Text style={styles.voiceButtonText}>{t.readTasks}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               onPress={() => Speech.stop()}
               style={styles.stopVoiceButton}
             >
-              <Text style={styles.stopVoiceText}>Stop voice</Text>
+              <Text style={styles.stopVoiceText}>{t.stopVoice}</Text>
             </Pressable>
           </View>
 
@@ -584,13 +639,13 @@ export default function App() {
             <>
               <View style={styles.composer}>
                 <TextInput
-                  accessibilityLabel={isEditing ? 'Edit task' : 'New task'}
+                  accessibilityLabel={isEditing ? t.editTask : t.newTask}
                   onChangeText={setTaskTitle}
                   onSubmitEditing={saveTask}
-                  placeholder={isEditing ? 'Edit task' : 'Add a task'}
+                  placeholder={isEditing ? t.editTask : t.addTask}
                   placeholderTextColor="#8a9488"
                   returnKeyType="done"
-                  style={styles.input}
+                  style={[styles.input, isRtl && styles.rtlInput]}
                   value={taskTitle}
                 />
                 <Pressable
@@ -600,45 +655,47 @@ export default function App() {
                   style={[styles.addButton, !canAddTask && styles.disabledButton]}
                 >
                   <Text style={styles.addButtonText}>
-                    {isEditing ? 'Save' : 'Add'}
+                    {isEditing ? t.save : t.add}
                   </Text>
                 </Pressable>
               </View>
 
-              <View style={styles.timeRow}>
+              <View style={[styles.timeRow, isRtl && styles.rtlRow]}>
                 <TextInput
-                  accessibilityLabel="Start time"
+                  accessibilityLabel={t.startTime}
                   onChangeText={setStartTime}
-                  placeholder="Start time"
+                  placeholder={t.startTime}
                   placeholderTextColor="#8a9488"
-                  style={styles.timeInput}
+                  style={[styles.timeInput, isRtl && styles.rtlInput]}
                   value={startTime}
                 />
                 <TextInput
-                  accessibilityLabel="End time"
+                  accessibilityLabel={t.endTime}
                   onChangeText={setEndTime}
-                  placeholder="End time"
+                  placeholder={t.endTime}
                   placeholderTextColor="#8a9488"
-                  style={styles.timeInput}
+                  style={[styles.timeInput, isRtl && styles.rtlInput]}
                   value={endTime}
                 />
               </View>
 
               <View style={styles.notesGroup}>
-                <Text style={styles.notesLabel}>Notes</Text>
+                <Text style={[styles.notesLabel, isRtl && styles.rtlText]}>
+                  {t.notes}
+                </Text>
                 <TextInput
-                  accessibilityLabel="Task notes"
+                  accessibilityLabel={t.notes}
                   multiline
                   onChangeText={setNotes}
-                  placeholder="Add notes"
+                  placeholder={t.addNotes}
                   placeholderTextColor="#8a9488"
-                  style={styles.notesInput}
+                  style={[styles.notesInput, isRtl && styles.rtlInput]}
                   textAlignVertical="top"
                   value={notes}
                 />
               </View>
 
-              <View style={styles.optionRow}>
+              <View style={[styles.optionRow, isRtl && styles.rtlRow]}>
                 <Pressable
                   accessibilityRole="switch"
                   accessibilityState={{ checked: hasReminder }}
@@ -660,7 +717,7 @@ export default function App() {
                       hasReminder && styles.activeReminderButtonText,
                     ]}
                   >
-                    Reminder
+                    {t.reminder}
                   </Text>
                 </Pressable>
 
@@ -670,7 +727,7 @@ export default function App() {
                     onPress={resetComposer}
                     style={styles.cancelButton}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel edit</Text>
+                    <Text style={styles.cancelButtonText}>{t.cancelEdit}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -678,6 +735,8 @@ export default function App() {
               <FilterTabs
                 activeFilter={activeFilter}
                 counts={counts}
+                isRtl={isRtl}
+                language={language}
                 onChange={setActiveFilter}
               />
             </>
@@ -687,13 +746,19 @@ export default function App() {
             ListEmptyComponent={
               isHistoryView ? (
                 <View style={styles.historyEmptyState}>
-                  <Text style={styles.historyEmptyTitle}>No old tasks yet</Text>
-                  <Text style={styles.historyEmptyMessage}>
-                    Deleted tasks will move here so you can restore them later.
+                  <Text style={[styles.historyEmptyTitle, isRtl && styles.rtlText]}>
+                    {t.noOldTasks}
+                  </Text>
+                  <Text style={[styles.historyEmptyMessage, isRtl && styles.rtlText]}>
+                    {t.historyEmpty}
                   </Text>
                 </View>
               ) : (
-                <EmptyState filter={activeFilter} />
+                <EmptyState
+                  filter={activeFilter}
+                  isRtl={isRtl}
+                  language={language}
+                />
               )
             }
             contentContainerStyle={styles.listContent}
@@ -703,6 +768,8 @@ export default function App() {
             renderItem={({ item }) => (
               isHistoryView ? (
                 <TaskItem
+                  isRtl={isRtl}
+                  language={language}
                   onDelete={permanentlyDeleteHistoryTask}
                   onRestore={restoreTask}
                   onSpeak={speakTask}
@@ -710,6 +777,8 @@ export default function App() {
                 />
               ) : (
                 <TaskItem
+                  isRtl={isRtl}
+                  language={language}
                   onDelete={deleteTask}
                   onEdit={startEditingTask}
                   onSpeak={speakTask}
@@ -834,6 +903,25 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  languageButton: {
+    alignItems: 'center',
+    borderColor: '#d8ded2',
+    borderRadius: 6,
+    borderWidth: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  languageButtonText: {
+    color: '#4f6f59',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  languageRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
   listContent: {
     flexGrow: 1,
     paddingBottom: 28,
@@ -886,6 +974,17 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     height: 10,
     width: 10,
+  },
+  rtlInput: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   safeArea: {
     backgroundColor: '#f6f4ee',

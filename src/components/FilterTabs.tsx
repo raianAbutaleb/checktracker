@@ -1,24 +1,30 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { Language } from '../i18n';
+import { translations } from '../i18n';
 import type { TaskFilter } from '../types/task';
 
 type FilterTabsProps = {
   activeFilter: TaskFilter;
   counts: Record<TaskFilter, number>;
+  isRtl: boolean;
+  language: Language;
   onChange: (filter: TaskFilter) => void;
 };
 
 const filters: TaskFilter[] = ['all', 'active', 'completed'];
 
-const labels: Record<TaskFilter, string> = {
-  all: 'All',
-  active: 'Active',
-  completed: 'Completed',
-};
+export function FilterTabs({
+  activeFilter,
+  counts,
+  isRtl,
+  language,
+  onChange,
+}: FilterTabsProps) {
+  const t = translations[language];
 
-export function FilterTabs({ activeFilter, counts, onChange }: FilterTabsProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isRtl && styles.rtlRow]}>
       {filters.map((filter) => {
         const isActive = filter === activeFilter;
 
@@ -31,7 +37,7 @@ export function FilterTabs({ activeFilter, counts, onChange }: FilterTabsProps) 
             style={[styles.tab, isActive && styles.activeTab]}
           >
             <Text style={[styles.label, isActive && styles.activeLabel]}>
-              {labels[filter]}
+              {t.filters[filter]}
             </Text>
             <Text style={[styles.count, isActive && styles.activeCount]}>
               {counts[filter]}
@@ -79,5 +85,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 8,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
   },
 });

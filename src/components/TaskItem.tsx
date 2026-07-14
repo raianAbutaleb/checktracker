@@ -1,9 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { Language } from '../i18n';
+import { translations } from '../i18n';
 import type { ArchivedTask, Task } from '../types/task';
 import { formatCreatedDate } from '../utils/date';
 
 type TaskItemProps = {
+  isRtl: boolean;
+  language: Language;
   task: ArchivedTask | Task;
   onDelete: (id: string) => void;
   onEdit?: (task: Task) => void;
@@ -13,6 +17,8 @@ type TaskItemProps = {
 };
 
 export function TaskItem({
+  isRtl,
+  language,
   task,
   onDelete,
   onEdit,
@@ -20,19 +26,18 @@ export function TaskItem({
   onSpeak,
   onToggle,
 }: TaskItemProps) {
+  const t = translations[language].task;
   const isArchived = 'archivedAt' in task;
   const timeLabel =
     task.startTime || task.endTime
-      ? `${task.startTime || 'Anytime'} - ${task.endTime || 'Open'}`
-      : 'No time set';
+      ? `${task.startTime || t.anytime} - ${task.endTime || t.open}`
+      : t.noTime;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isRtl && styles.rtlCard]}>
       {onToggle ? (
         <Pressable
-          accessibilityLabel={
-            task.completed ? 'Mark task as active' : 'Mark task as completed'
-          }
+          accessibilityLabel={task.completed ? t.markActive : t.markCompleted}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: task.completed }}
           onPress={() => onToggle(task.id)}
@@ -45,17 +50,31 @@ export function TaskItem({
       <View style={styles.content}>
         <Text
           numberOfLines={3}
-          style={[styles.title, task.completed && styles.completedTitle]}
+          style={[
+            styles.title,
+            isRtl && styles.rtlText,
+            task.completed && styles.completedTitle,
+          ]}
         >
           {task.title}
         </Text>
-        <Text style={styles.time}>{timeLabel}</Text>
-        {task.notes ? <Text style={styles.notes}>{task.notes}</Text> : null}
-        {task.hasReminder ? <Text style={styles.reminder}>Reminder on</Text> : null}
-        <Text style={styles.date}>Created {formatCreatedDate(task.createdAt)}</Text>
+        <Text style={[styles.time, isRtl && styles.rtlText]}>{timeLabel}</Text>
+        {task.notes ? (
+          <Text style={[styles.notes, isRtl && styles.rtlText]}>
+            {task.notes}
+          </Text>
+        ) : null}
+        {task.hasReminder ? (
+          <Text style={[styles.reminder, isRtl && styles.rtlText]}>
+            {t.reminderOn}
+          </Text>
+        ) : null}
+        <Text style={[styles.date, isRtl && styles.rtlText]}>
+          {t.created} {formatCreatedDate(task.createdAt)}
+        </Text>
         {isArchived ? (
-          <Text style={styles.date}>
-            Moved to history {formatCreatedDate(task.archivedAt)}
+          <Text style={[styles.date, isRtl && styles.rtlText]}>
+            {t.movedToHistory} {formatCreatedDate(task.archivedAt)}
           </Text>
         ) : null}
       </View>
@@ -63,45 +82,45 @@ export function TaskItem({
       <View style={styles.actions}>
         {onSpeak ? (
           <Pressable
-            accessibilityLabel={`Read ${task.title}`}
+            accessibilityLabel={`${t.readA11y} ${task.title}`}
             accessibilityRole="button"
             onPress={() => onSpeak(task)}
             style={styles.speakButton}
           >
-            <Text style={styles.speakText}>Read</Text>
+            <Text style={styles.speakText}>{t.read}</Text>
           </Pressable>
         ) : null}
 
         {onEdit && !isArchived ? (
           <Pressable
-            accessibilityLabel={`Edit ${task.title}`}
+            accessibilityLabel={`${t.editA11y} ${task.title}`}
             accessibilityRole="button"
             onPress={() => onEdit(task)}
             style={styles.editButton}
           >
-            <Text style={styles.editText}>Edit</Text>
+            <Text style={styles.editText}>{t.edit}</Text>
           </Pressable>
         ) : null}
 
         {onRestore && isArchived ? (
           <Pressable
-            accessibilityLabel={`Restore ${task.title}`}
+            accessibilityLabel={`${t.restoreA11y} ${task.title}`}
             accessibilityRole="button"
             onPress={() => onRestore(task.id)}
             style={styles.editButton}
           >
-            <Text style={styles.editText}>Restore</Text>
+            <Text style={styles.editText}>{t.restore}</Text>
           </Pressable>
         ) : null}
 
         <Pressable
-          accessibilityLabel={`Delete ${task.title}`}
+          accessibilityLabel={`${t.deleteA11y} ${task.title}`}
           accessibilityRole="button"
           onPress={() => onDelete(task.id)}
           style={styles.deleteButton}
         >
           <Text style={styles.deleteText}>
-            {isArchived ? 'Delete forever' : 'Delete'}
+            {isArchived ? t.deleteForever : t.delete}
           </Text>
         </Pressable>
       </View>
@@ -226,5 +245,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 21,
+  },
+  rtlCard: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { Language } from '../i18n';
 import type { ArchivedTask, Task } from '../types/task';
 
 const TASKS_STORAGE_KEY = '@checktracker/tasks';
 const HISTORY_STORAGE_KEY = '@checktracker/history';
 const USER_ACCOUNT_STORAGE_KEY = '@checktracker/user-account';
 const CURRENT_USER_STORAGE_KEY = '@checktracker/current-user';
+const LANGUAGE_STORAGE_KEY = '@checktracker/language';
 
 export type UserAccount = {
   username: string;
@@ -82,6 +84,16 @@ export async function saveCurrentUsername(username: string) {
 
 export async function clearCurrentUsername() {
   await AsyncStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+}
+
+export async function loadLanguage() {
+  const storedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+
+  return storedLanguage === 'ar' ? 'ar' : 'en';
+}
+
+export async function saveLanguage(language: Language) {
+  await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
 }
 
 type StoredTask = Partial<Task> & Pick<Task, 'id' | 'title' | 'createdAt' | 'completed'>;

@@ -1,22 +1,24 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { Language } from '../i18n';
+import { translations } from '../i18n';
 import type { TaskFilter } from '../types/task';
 
 type EmptyStateProps = {
   filter: TaskFilter;
+  isRtl: boolean;
+  language: Language;
 };
 
-const messages: Record<TaskFilter, string> = {
-  all: 'No tasks yet. Add your first task to start tracking the day.',
-  active: 'No active tasks. Nice work keeping the list clear.',
-  completed: 'No completed tasks yet. Finish one and it will show up here.',
-};
+export function EmptyState({ filter, isRtl, language }: EmptyStateProps) {
+  const t = translations[language];
 
-export function EmptyState({ filter }: EmptyStateProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Nothing here</Text>
-      <Text style={styles.message}>{messages[filter]}</Text>
+      <Text style={[styles.title, isRtl && styles.rtlText]}>{t.emptyTitle}</Text>
+      <Text style={[styles.message, isRtl && styles.rtlText]}>
+        {t.emptyMessages[filter]}
+      </Text>
     </View>
   );
 }
@@ -43,5 +45,9 @@ const styles = StyleSheet.create({
     color: '#253029',
     fontSize: 18,
     fontWeight: '700',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
